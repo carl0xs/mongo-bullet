@@ -40,7 +40,10 @@ export const connectDB = async (): Promise<Connection> => {
     });
 
     const conn = mongoose.connection;
-    initializeMongoBullet(conn);
+    initializeMongoBullet({
+        connection: conn, 
+        slowThreshold: 150 // Optional. Default value is 100.
+    });
 
     console.log(`MongoDB Connected: ${conn.host}`);
     return conn;
