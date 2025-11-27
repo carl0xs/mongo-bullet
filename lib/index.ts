@@ -1,13 +1,27 @@
+import { CommandStartedEvent, CommandSucceededEvent } from "mongodb";
 import pino from "pino";
 import pretty from "pino-pretty";
 
+export type PendingCommand = {
+  command: string;
+  filter?: Record<string, unknown>;
+  sort?: Record<string, unknown>;
+  pipeline?: Record<string, unknown>[];
+  collection: string;
+};
+
+type InitializeMongoBulletOptions = {
+  connection: any;
+  slowThreshold?: number;
+};
+
 const logger = pino(pretty({ sync: true }));
 
-const SLOW_THRESHOLD = 100;
-const pendingCommands: Record<number, any> = {};
+const DEFAULT_SLOW_THRESHOLD = 100;
+const pendingCommands: Record<number, PendingCommand> = {};
 const seen = new Set<string>();
 
-const extractQueryFields = (data: any) => {
+const extractQueryFields = (data: PendingCommand) => {
   const matchFields = new Set<string>();
   const sortFields = new Set<string>();
 
@@ -79,10 +93,14 @@ const suggestIndexesFromHeuristics = (query: {
 };
 
 
-export const initializeMongoBullet = (connection: any) => {
-  logger.info("===== Mongo bullet started =====");
+export const initializeMongoBullet = ({ 
+  connection, 
+  slowThreshold = DEFAULT_SLOW_THRESHOLD
+}: InitializeMongoBulletOptions) => {
 
-  connection.on("commandStarted", (event: any) => {
+  logger.info("MongoBullet initialized.");
+
+  connection.on("commandStarted", (event: CommandStartedEvent) => {
     const command = event.commandName;
 
     if (!["find", "aggregate", "update", "delete"].includes(command)) return;
@@ -100,13 +118,13 @@ export const initializeMongoBullet = (connection: any) => {
     };
   });
 
-  connection.on("commandSucceeded", (event: any) => {
+  connection.on("commandSucceeded", (event: CommandSucceededEvent) => {
     const data = pendingCommands[event.requestId];
     if (!data) return;
     delete pendingCommands[event.requestId];
 
     const duration = event.duration;
-    if (duration < SLOW_THRESHOLD) return;
+    if (duration < slowThreshold) return;
 
     const key = `${data.collection}:${data.command}:${duration}`;
     if (seen.has(key)) return;

@@ -1,6 +1,6 @@
 {
   "name": "mongo-bullet",
-  "version": "1.0.3",
+  "version": "1.0.3-beta",
   "description": "A library to monitor MongoDB queries and detect performance issues.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,7 @@
     "query",
     "bullet"
   ],
-  "author": "",
+  "author": "Carlos Henrique",
   "license": "ISC",
   "packageManager": "pnpm@10.15.1",
   "dependencies": {
