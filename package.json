@@ -1,6 +1,6 @@
 {
   "name": "mongo-bullet",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "A library to monitor MongoDB queries and detect performance issues.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/index.ts",
+    "dev": "tsx lib/index.ts",
     "start": "node dist/index.js"
   },
   "keywords": [
