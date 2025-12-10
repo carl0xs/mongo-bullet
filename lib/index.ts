@@ -13,11 +13,16 @@ export type PendingCommand = {
 type InitializeMongoBulletOptions = {
   connection: any;
   slowThreshold?: number;
+  returnedFieldsThreshold?: number;
 };
 
 const logger = pino(pretty({ sync: true }));
 
-const DEFAULT_SLOW_THRESHOLD = 100;
+const DEFAULT_THRESHOLD = { 
+  SLOW_QUERY: 100, 
+  N_FIELDS: 20
+};
+
 const pendingCommands: Record<number, PendingCommand> = {};
 const seen = new Set<string>();
 
@@ -92,12 +97,32 @@ const suggestIndexesFromHeuristics = (query: {
   return suggestions;
 };
 
+const extractReturnedFields = (docs: any[], limit: number) => {
+  const fields = new Set<string>();
+  const sample = docs.slice(0, limit);
 
-export const initializeMongoBullet = ({ 
-  connection, 
-  slowThreshold = DEFAULT_SLOW_THRESHOLD
+  for (const doc of sample) {
+    for (const key of Object.keys(doc)) {
+      fields.add(key);
+    }
+  }
+
+  return [...fields];
+};
+
+const suggestReturnedFieldsHeuristics = (fields: string[]) => {
+  return {
+    fields,
+    reason:
+      "Field returned by query. Reducing returned fields with projections can decrease payload size and improve latency."
+  };
+};
+
+export const initializeMongoBullet = ({
+  connection,
+  slowThreshold = DEFAULT_THRESHOLD.SLOW_QUERY,
+  returnedFieldsThreshold = DEFAULT_THRESHOLD.N_FIELDS
 }: InitializeMongoBulletOptions) => {
-
   logger.info("MongoBullet initialized.");
 
   connection.on("commandStarted", (event: CommandStartedEvent) => {
@@ -122,6 +147,29 @@ export const initializeMongoBullet = ({
     const data = pendingCommands[event.requestId];
     if (!data) return;
     delete pendingCommands[event.requestId];
+
+    const reply = event.reply as any;
+    let returnedDocs: any[] = [];
+
+    if (reply?.cursor?.firstBatch) {
+      returnedDocs = reply.cursor.firstBatch;
+    } else if (reply?.cursor?.nextBatch) {
+      returnedDocs = reply.cursor.nextBatch;
+    }
+
+    const returnedFields = extractReturnedFields(
+      returnedDocs,
+      returnedFieldsThreshold
+    );
+
+    if (returnedFields.length >= returnedFieldsThreshold) {
+      logger.warn({
+        type: "TOO_MANY_FIELDS",
+        collection: data.collection,
+        command: data.command,
+        suggestionsManyFields: suggestReturnedFieldsHeuristics(returnedFields)
+      });
+    }
 
     const duration = event.duration;
     if (duration < slowThreshold) return;
