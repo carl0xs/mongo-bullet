@@ -42,7 +42,6 @@ export const connectDB = async (): Promise<Connection> => {
     const conn = mongoose.connection;
     initializeMongoBullet({
         connection: conn, 
-        slowThreshold: 150 // Optional. Default value is 100.
     });
 
     console.log(`MongoDB Connected: ${conn.host}`);
@@ -56,7 +55,36 @@ export const connectDB = async (): Promise<Connection> => {
 
 ### Configuration
 
-At the moment, Mongo Bullet does not require any specific configuration.
+initializeMongoBullet accepts the following configuration options:
+
+`connection` (required)
+Type: `mongoose.Connection`
+The active Mongoose connection used to listen to MongoDB commands.
+Mongo Bullet attaches internal listeners to this connection to analyze queries in real time.
+
+`slowThreshold` (optional)
+
+Type: `number`
+Default: 100
+Defines the execution time threshold (in milliseconds) above which a query is considered slow and reported in the console.
+
+Use this to tune sensitivity based on your application’s performance requirements.
+
+`returnedFieldsThreshold` (optional)
+
+Type: `number`
+Defines the maximum number of returned fields allowed before Mongo Bullet flags the query.
+
+This helps identify inefficient queries that return more data than necessary (e.g. missing projections).
+
+Example: 
+```typescript
+initializeMongoBullet({
+  connection: mongoose.connection,
+  slowThreshold: 150,
+  returnedFieldsThreshold: 20,
+});
+```
 
 ### Contributing
 
