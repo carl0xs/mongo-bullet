@@ -18,6 +18,10 @@ To install Mongo Bullet, use your favorite package manager.
 
 ```bash
 pnpm add mongo-bullet
+# or
+yarn add mongo-bullet
+# or
+npm i mongo-bullet
 ```
 
 ### Usage
